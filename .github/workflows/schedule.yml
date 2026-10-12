@@ -1,0 +1,32 @@
+name: Peter Lynch Stock Screener
+
+on:
+  schedule:
+    # 매주 토요일 오전 9시(한국시간 기준)에 자동 실행 (UTC 0시)
+    - cron: '0 0 * * 6'
+  workflow_dispatch: # 깃허브 웹에서 수동으로 버튼을 눌러 실행할 수 있게 함
+
+jobs:
+  run-screener:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run main script
+      env:
+        GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+      run: |
+        python main.py
