@@ -29,4 +29,4 @@ jobs:
         GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
       run: |
-        python main.py
+        python USA_PL_main.py
