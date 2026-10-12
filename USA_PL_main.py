@@ -6,6 +6,7 @@ import io
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
+import requests # 차단 우회를 위해 추가
 import gspread
 from gspread_dataframe import set_with_dataframe
 from google.oauth2 import service_account
@@ -27,13 +28,23 @@ def get_sp500_tickers():
 
 def screen_peter_lynch(tickers):
     results = []
-    
     print(f"총 {len(tickers)}개 종목 분석 시작... (약 2~3분 소요)")
+
+    # [추가됨] 야후 파이낸스 봇 차단 우회를 위한 세션 설정
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    })
 
     for symbol in tickers:
         try:
-            ticker = yf.Ticker(symbol)
+            # yfinance 호출 시 위에서 만든 우회 세션을 주입
+            ticker = yf.Ticker(symbol, session=session)
             info = ticker.info
+            
+            # 차단되었거나 빈 데이터가 오면 강제로 에러 발생
+            if not info or len(info) <= 1:
+                raise ValueError("야후 파이낸스 접근 차단됨 (데이터 비어있음)")
 
             peg = info.get('pegRatio')
             pe = info.get('trailingPE')
@@ -55,7 +66,6 @@ def screen_peter_lynch(tickers):
                         'Sector': sector,
                         'PER': round(pe, 2),
                         'PEG': round(peg, 2),
-                        # 구글 시트 날짜 변환 오류를 막기 위해 % 기호 추가
                         'Debt/Equity(%)': f"{debt_to_equity:.2f}%",
                         'Div Yield(%)': f"{div_yield * 100:.2f}%" if div_yield is not None else "0.00%",
                         'ROE(%)': f"{roe * 100:.2f}%" if roe is not None else 'N/A',
@@ -63,8 +73,11 @@ def screen_peter_lynch(tickers):
                         'Op Margin(%)': f"{op_margin * 100:.2f}%" if op_margin is not None else 'N/A',
                         'PBR': round(pbr, 2) if pbr is not None else 'N/A'
                     })
-            time.sleep(0.1) 
-        except Exception:
+            time.sleep(0.5) # 야후 차단 방지를 위해 쉬는 시간을 약간 넉넉하게 조정
+            
+        except Exception as e:
+            # [수정됨] 조용히 넘기지 않고 에러 내용을 깃허브 로그에 출력
+            print(f"[{symbol}] 조회 실패: {e}")
             continue
 
     return pd.DataFrame(results)
