@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import urllib.request
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
@@ -15,7 +16,12 @@ def get_sp500_tickers():
     """위키피디아에서 S&P 500 티커 목록을 가져옵니다."""
     print("S&P 500 티커 목록을 가져오는 중...")
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
-    tables = pd.read_html(url)
+    
+    # 위키피디아 403 에러 방지를 위해 브라우저 헤더(User-Agent) 추가
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    html = urllib.request.urlopen(req).read()
+    
+    tables = pd.read_html(html)
     df = tables[0]
     tickers = df['Symbol'].str.replace('.', '-', regex=False).tolist()
     return tickers
@@ -24,7 +30,6 @@ def screen_peter_lynch(tickers, sample_size=30):
     """현대화된 피터 린치 조건으로 종목을 필터링합니다."""
     results = []
     # 테스트를 위해 우선 30개만 검사합니다. 
-    # (전체 종목을 검사하려면 아래 줄을 target_tickers = tickers 로 변경하세요)
     target_tickers = tickers[:sample_size] 
     
     print(f"총 {len(target_tickers)}개 종목 분석 시작...")
@@ -95,7 +100,17 @@ def upload_to_drive(file_path, file_name):
 if __name__ == "__main__":
     sp500_tickers = get_sp500_tickers()
     
-    # 분석 시작 (테스트 후 sample_size 옵션을 지우면 전체 500개 종목을 분석합니다)
+    # 분석 시작
     result_df = screen_peter_lynch(sp500_tickers, sample_size=30) 
     
-    today_
+    today_str = datetime.now().strftime("%Y%m%d")
+    local_file_name = f"peter_lynch_stocks_{today_str}.csv"
+    
+    if not result_df.empty:
+        result_df.to_csv(local_file_name, index=False, encoding='utf-8-sig')
+        print(f"분석 완료. 파일 생성됨: {local_file_name}")
+        print(result_df)
+        
+        upload_to_drive(local_file_name, local_file_name)
+    else:
+        print("조건을 만족하는 종목이 없습니다.")
