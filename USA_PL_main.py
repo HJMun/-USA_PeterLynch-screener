@@ -25,24 +25,32 @@ def get_sp500_tickers():
     tickers = df['Symbol'].str.replace('.', '-', regex=False).tolist()
     return tickers
 
-def screen_peter_lynch(tickers, sample_size=30):
+# sample_size 파라미터를 제거하여 500개 전체를 분석하도록 수정
+def screen_peter_lynch(tickers):
     results = []
-    target_tickers = tickers[:sample_size]
+    
+    print(f"총 {len(tickers)}개 종목 분석 시작... (약 2~3분 소요)")
 
-    print(f"총 {len(target_tickers)}개 종목 분석 시작...")
-
-    for symbol in target_tickers:
+    for symbol in tickers:
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
 
+            # 기존 피터린치 지표
             peg = info.get('pegRatio')
             pe = info.get('trailingPE')
             debt_to_equity = info.get('debtToEquity')
             name = info.get('shortName', symbol)
             sector = info.get('sector', 'N/A')
+            
+            # 신규 추가 판단 지표
+            div_yield = info.get('dividendYield')
+            roe = info.get('returnOnEquity')
+            current_ratio = info.get('currentRatio')
+            op_margin = info.get('operatingMargins')
+            pbr = info.get('priceToBook')
 
-            # 현대화된 피터 린치 조건
+            # 현대화된 피터 린치 필터링 조건
             if peg is not None and pe is not None and debt_to_equity is not None:
                 if 0 < peg <= 1.5 and pe <= 35 and debt_to_equity < 150:
                     results.append({
@@ -51,9 +59,15 @@ def screen_peter_lynch(tickers, sample_size=30):
                         'Sector': sector,
                         'PER': round(pe, 2),
                         'PEG': round(peg, 2),
-                        'Debt/Equity(%)': round(debt_to_equity, 2)
+                        'Debt/Equity(%)': round(debt_to_equity, 2),
+                        # 신규 지표들을 시트에 추가 (데이터가 없는 경우 N/A 또는 0 처리)
+                        'Div Yield(%)': round(div_yield * 100, 2) if div_yield is not None else 0.0,
+                        'ROE(%)': round(roe * 100, 2) if roe is not None else 'N/A',
+                        'Current Ratio': round(current_ratio, 2) if current_ratio is not None else 'N/A',
+                        'Op Margin(%)': round(op_margin * 100, 2) if op_margin is not None else 'N/A',
+                        'PBR': round(pbr, 2) if pbr is not None else 'N/A'
                     })
-            time.sleep(0.2)
+            time.sleep(0.1) # 속도 향상을 위해 딜레이를 0.1초로 단축
         except Exception:
             continue
 
@@ -97,8 +111,8 @@ def update_google_sheet(df):
 if __name__ == "__main__":
     sp500_tickers = get_sp500_tickers()
 
-    # 분석 시작 (테스트를 위해 우선 30개만 진행. 정상 작동 확인 후 옵션을 지우세요.)
-    result_df = screen_peter_lynch(sp500_tickers, sample_size=30)
+    # 분석 시작 (전체 500여 개 종목 대상)
+    result_df = screen_peter_lynch(sp500_tickers)
 
     if not result_df.empty:
         # 빈 값이 있으면 시트 업로드 시 에러가 날 수 있으므로 빈 문자열로 안전하게 처리
@@ -108,9 +122,8 @@ if __name__ == "__main__":
         today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         result_df['Update_Time'] = today_str
 
-        print("분석 완료. 다음 종목들이 조건에 부합합니다:")
-        print(result_df)
-
+        print(f"분석 완료. 총 {len(result_df)}개의 종목이 조건에 부합합니다.")
+        
         # 구글 시트로 전송
         update_google_sheet(result_df)
     else:
