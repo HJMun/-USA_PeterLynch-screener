@@ -2,6 +2,7 @@ import os
 import json
 import time
 import urllib.request
+import io
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
@@ -19,9 +20,11 @@ def get_sp500_tickers():
     
     # 위키피디아 403 에러 방지를 위해 브라우저 헤더(User-Agent) 추가
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    html = urllib.request.urlopen(req).read()
+    html_bytes = urllib.request.urlopen(req).read()
+    html_str = html_bytes.decode('utf-8')
     
-    tables = pd.read_html(html)
+    # 판다스 오류 방지를 위해 텍스트를 StringIO로 감싸서 전달
+    tables = pd.read_html(io.StringIO(html_str))
     df = tables[0]
     tickers = df['Symbol'].str.replace('.', '-', regex=False).tolist()
     return tickers
