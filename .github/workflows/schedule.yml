@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.12' # 구글 API 경고를 해결하기 위해 버전 상향
+        python-version: '3.12'
 
     - name: Install dependencies
       run: |
@@ -26,7 +26,6 @@ jobs:
     - name: Run main script
       env:
         GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-        DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        SHEET_ID: ${{ secrets.SHEET_ID }}
       run: |
-        # 실제 생성하신 파일명에 맞춤
         python USA_PL_main.py
