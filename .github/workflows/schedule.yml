@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install beautifulsoup4 requests gspread google-auth
+        pip install pandas yfinance lxml gspread gspread-dataframe google-auth
 
     - name: Run main script
       env:
